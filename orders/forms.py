@@ -3,14 +3,15 @@ import re
 from django import forms
 from .models import Order, OrderFile, Service
 from .validators import validate_stl
+from .widgets import DropFileInput
 
 
 class OrderForm(forms.ModelForm):
     submission_key = forms.UUIDField(widget=forms.HiddenInput)
-    working = forms.FileField(label="Рабочая челюсть · STL", validators=[validate_stl])
-    antagonist = forms.FileField(label="Антагонист · STL", required=False, validators=[validate_stl])
-    bite = forms.FileField(label="Прикус · STL", required=False, validators=[validate_stl])
-    scanbody_file = forms.FileField(label="Scanbody · STL", required=False, validators=[validate_stl])
+    working = forms.FileField(label="Рабочая челюсть · STL", validators=[validate_stl], widget=DropFileInput)
+    antagonist = forms.FileField(label="Антагонист · STL", required=False, validators=[validate_stl], widget=DropFileInput)
+    bite = forms.FileField(label="Прикус · STL", required=False, validators=[validate_stl], widget=DropFileInput)
+    scanbody_file = forms.FileField(label="Scanbody · STL", required=False, validators=[validate_stl], widget=DropFileInput)
 
     class Meta:
         model = Order
@@ -68,4 +69,4 @@ class AdditionalFileForm(forms.Form):
         OrderFile.Purpose.BITE,
         OrderFile.Purpose.SCANBODY,
     )])
-    file = forms.FileField(label="STL-файл", validators=[validate_stl], widget=forms.ClearableFileInput(attrs={"accept": ".stl"}))
+    file = forms.FileField(label="STL-файл", validators=[validate_stl], widget=DropFileInput)

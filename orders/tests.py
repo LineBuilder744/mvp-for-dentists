@@ -14,7 +14,7 @@ from accounts.models import User
 from .admin import OrderAdmin, OrderAdminForm
 from .forms import OrderForm
 from .models import Comment, Order, OrderFile, Service, private_storage
-from .services import create_order, publish_result, transition, upload_result
+from .services import attach_file, create_order, publish_result, transition, upload_result
 from .validators import validate_stl
 
 
@@ -66,6 +66,21 @@ class OrderTests(TestCase):
         self.assertNotContains(response, foreign.case_number)
         response = self.client.get(reverse("orders:list"), {"q": self.order.case_number})
         self.assertContains(response, self.order.case_number)
+
+    def test_source_and_result_sections_keep_drafts_private(self):
+        source = attach_file(self.order, self.owner, scan("source.stl"), OrderFile.Purpose.WORKING)
+        result = upload_result(self.order.pk, self.staff, scan("result.stl"))
+        draft = upload_result(self.order.pk, self.staff, scan("draft.stl"))
+        publish_result(result.pk, self.staff)
+        response = self.client.get(reverse("orders:detail", args=[self.order.pk]))
+        self.assertEqual(list(response.context["source_files"]), [source])
+        self.assertEqual(list(response.context["result_files"]), [result])
+        self.assertContains(response, "Ваши файлы")
+        self.assertContains(response, "Результаты CAD")
+        self.assertNotContains(response, "draft.stl")
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse("orders:detail", args=[self.order.pk]))
+        self.assertEqual(list(response.context["result_files"]), [draft, result])
 
     def test_disabled_service_and_service_validation(self):
         self.service.is_active = False

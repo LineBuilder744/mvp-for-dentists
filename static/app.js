@@ -1,4 +1,7 @@
-document.querySelectorAll('[data-upload-form]').forEach(form => {
+function initializeOrderForms(root = document) {
+root.querySelectorAll('[data-upload-form]').forEach(form => {
+  if (form.dataset.initialized) return;
+  form.dataset.initialized = 'true';
   form.addEventListener('submit', event => {
     if (!form.checkValidity()) return;
     event.preventDefault();
@@ -8,6 +11,9 @@ document.querySelectorAll('[data-upload-form]').forEach(form => {
     const progress = status.querySelector('progress');
     const label = status.querySelector('span');
     const xhr = new XMLHttpRequest();
+    const payload = new FormData(form);
+    const inputs = Array.from(form.querySelectorAll('input[type=file]')).filter(input => !input.disabled);
+    inputs.forEach(input => { input.disabled = true; });
     button.disabled = true;
     status.hidden = false;
     label.textContent = 'Загрузка файлов…';
@@ -20,6 +26,7 @@ document.querySelectorAll('[data-upload-form]').forEach(form => {
     };
     const failed = () => {
       button.disabled = false;
+      inputs.forEach(input => { input.disabled = false; });
       label.textContent = 'Не удалось отправить заказ. Проверьте соединение и повторите отправку.';
     };
     xhr.onerror = failed;
@@ -29,13 +36,16 @@ document.querySelectorAll('[data-upload-form]').forEach(form => {
           window.location.assign(xhr.responseURL);
         } else {
           const doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
-          document.querySelector('main').replaceWith(doc.querySelector('main'));
-          const script = document.createElement('script');
-          script.src = '/static/app.js';
-          document.body.appendChild(script);
+          const main = doc.querySelector('main');
+          if (!main) { failed(); return; }
+          document.querySelector('main').replaceWith(main);
+          initializeDropFiles(main);
+          initializeOrderForms(main);
         }
       } else failed();
     };
-    xhr.send(new FormData(form));
+    xhr.send(payload);
   });
 });
+}
+initializeOrderForms();

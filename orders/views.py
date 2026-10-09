@@ -68,7 +68,9 @@ def order_detail(request, pk):
     events = order.events.all()
     if not request.user.is_staff:
         events = events.filter(is_internal=False)
-    return render(request, "orders/detail.html", {"order": order, "files": files, "events": events,
+    return render(request, "orders/detail.html", {"order": order,
+        "source_files": files.exclude(purpose=OrderFile.Purpose.RESULT).order_by("created_at"),
+        "result_files": files.filter(purpose=OrderFile.Purpose.RESULT).order_by("-version"), "events": events,
         "comments": order.comments.select_related("author"), "comment_form": CommentForm(), "file_form": AdditionalFileForm()})
 
 
