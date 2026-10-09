@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Private CAD uploads and collected static assets
+private_uploads/
+staticfiles/
+artifacts/

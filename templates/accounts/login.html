@@ -1,0 +1,3 @@
+{% extends 'base.html' %}
+{% block title %}Вход · CAD{% endblock %}
+{% block content %}<section class="auth"><p class="eyebrow">Кабинет клиента</p><h1>Вход</h1><form method="post">{% csrf_token %}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button class="button" type="submit">Войти</button></form><div class="auth-links"><a href="{% url 'password_reset' %}">Забыли пароль?</a><a href="{% url 'resend_verification' %}">Подтвердить email</a></div><p>Нет аккаунта? <a href="{% url 'register' %}?next={{ next|urlencode }}">Зарегистрироваться</a></p></section>{% endblock %}

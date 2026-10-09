@@ -1,0 +1,2 @@
+{% extends 'base.html' %}
+{% block content %}<section class="auth"><p class="eyebrow">Регистрация</p><h1>Проверьте почту</h1><p>Если аккаунт ожидает подтверждения, на указанный email отправлена ссылка. Проверьте также папку «Спам».</p><p><a href="{% url 'resend_verification' %}">Запросить письмо повторно</a></p><a class="button" href="{% url 'login' %}">Перейти ко входу</a></section>{% endblock %}

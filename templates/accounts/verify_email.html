@@ -1,0 +1,2 @@
+{% extends 'base.html' %}
+{% block content %}<section class="auth"><h1>Подтверждение email</h1>{% if valid %}<form method="post">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="button" type="submit">Подтвердить email</button></form>{% else %}<p>Ссылка недействительна, уже использована или срок её действия истёк.</p><a href="{% url 'resend_verification' %}">Получить новую ссылку</a>{% endif %}</section>{% endblock %}
