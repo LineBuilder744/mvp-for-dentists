@@ -38,6 +38,20 @@ root.querySelectorAll('[data-upload-form]').forEach(form => {
           const doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
           const main = doc.querySelector('main');
           if (!main) { failed(); return; }
+          // Move the original file controls: replacing them clears the browser's selection.
+          const replacements = Array.from(main.querySelectorAll('input[type=file]'));
+          inputs.forEach(input => {
+            input.disabled = false;
+            if (!input.files.length) return;
+            const replacement = replacements.find(field => field.name === input.name);
+            if (!replacement) return;
+            ['aria-invalid', 'aria-describedby'].forEach(attribute => {
+              if (replacement.hasAttribute(attribute)) {
+                input.setAttribute(attribute, replacement.getAttribute(attribute));
+              } else input.removeAttribute(attribute);
+            });
+            replacement.closest('[data-drop-zone]').replaceWith(input.closest('[data-drop-zone]'));
+          });
           document.querySelector('main').replaceWith(main);
           initializeDropFiles(main);
           initializeOrderForms(main);
