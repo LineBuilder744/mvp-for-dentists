@@ -6,6 +6,26 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 
+def validate_attachment(upload):
+    if Path(upload.name).suffix.lower() == ".stl":
+        return validate_stl(upload)
+    from PIL import Image, UnidentifiedImageError
+    if Path(upload.name).suffix.lower() not in (".jpg", ".jpeg", ".png"):
+        raise ValidationError("Допустимы STL, JPG и PNG.")
+    if not upload.size or upload.size > 10 * 1024 * 1024:
+        raise ValidationError("Изображение должно быть непустым и не больше 10 МБ.")
+    try:
+        image = Image.open(upload)
+        expected = "PNG" if Path(upload.name).suffix.lower() == ".png" else "JPEG"
+        if image.format != expected or image.width * image.height > 20_000_000:
+            raise ValidationError("Неверный формат изображения или размер больше 20 мегапикселей.")
+        image.verify()
+    except (OSError, UnidentifiedImageError, Image.DecompressionBombError, SyntaxError, ValueError):
+        raise ValidationError("Изображение повреждено или не соответствует формату JPG/PNG.")
+    finally:
+        upload.seek(0)
+
+
 def validate_stl(upload):
     if Path(upload.name).suffix.lower() != ".stl":
         raise ValidationError("Принимаются только STL-файлы.")

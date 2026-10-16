@@ -19,6 +19,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware", "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware", "django.contrib.messages.middleware.MessageMiddleware",
+    "orders.middleware.RequestLimitMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 ROOT_URLCONF = "config.urls"
@@ -56,6 +57,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 MAX_ATTACHMENTS_PER_ORDER = 10
+MAX_REQUEST_UPLOAD_BYTES = 2 * 1024 ** 3
+ORGANIZATION_STORAGE_BYTES = int(os.environ.get("ORGANIZATION_STORAGE_BYTES", str(20 * 1024 ** 3)))
+UPLOAD_BYTES_PER_HOUR = int(os.environ.get("UPLOAD_BYTES_PER_HOUR", str(5 * 1024 ** 3)))
+WRITE_REQUESTS_PER_MINUTE = int(os.environ.get("WRITE_REQUESTS_PER_MINUTE", "40"))
+QUOTE_REQUESTS_PER_MINUTE = 120
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "orders:list"
@@ -73,4 +79,5 @@ SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_SSL_REDIRECT = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
 X_FRAME_OPTIONS = "DENY"

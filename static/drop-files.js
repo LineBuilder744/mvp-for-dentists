@@ -11,16 +11,22 @@ function initializeDropFiles(root = document) {
       zone.classList.toggle('has-error', error);
     };
     const validate = files => {
-      if (files.length !== 1) return 'Перетащите один файл в это поле.';
-      if (!files[0].name.toLowerCase().endsWith('.stl')) return 'Принимаются только STL-файлы.';
-      if (!files[0].size || files[0].size > 200 * 1024 * 1024) return 'Файл должен быть непустым и не больше 200 МБ.';
+      if ((!input.multiple && files.length !== 1) || !files.length) return 'Перетащите один файл в это поле.';
+      if (files.length > 10) return 'Не более 10 файлов.';
+      const formats = input.accept.split(',');
+      for (const file of files) {
+        const extension = '.' + file.name.split('.').pop().toLowerCase();
+        if (!formats.includes(extension)) return `Допустимые форматы: ${input.accept}.`;
+        const limit = extension === '.stl' ? 200 : 10;
+        if (!file.size || file.size > limit * 1024 * 1024) return `Файл должен быть непустым и не больше ${limit} МБ.`;
+      }
       return '';
     };
     input.addEventListener('change', () => {
       const error = input.files.length ? validate(input.files) : '';
       if (error) input.value = '';
       zone.classList.toggle('has-file', input.files.length > 0);
-      showStatus(error || (input.files.length ? `Выбран: ${input.files[0].name}` : ''), Boolean(error));
+      showStatus(error || (input.files.length ? `Выбрано: ${Array.from(input.files).map(file => file.name).join(', ')}` : ''), Boolean(error));
     });
     zone.addEventListener('dragenter', event => {
       if (!event.dataTransfer.types.includes('Files')) return;
@@ -48,7 +54,13 @@ function initializeDropFiles(root = document) {
         showStatus(error, true);
         return;
       }
-      input.files = event.dataTransfer.files;
+      const transfer = new DataTransfer();
+      const files = input.multiple ? [...input.files, ...event.dataTransfer.files] : [...event.dataTransfer.files];
+      const unique = files.filter((file, index) => files.findIndex(other => other.name === file.name && other.size === file.size && other.lastModified === file.lastModified) === index);
+      const combinedError = validate(unique);
+      if (combinedError) { showStatus(combinedError, true); return; }
+      unique.forEach(file => transfer.items.add(file));
+      input.files = transfer.files;
       input.dispatchEvent(new Event('change', {bubbles: true}));
     });
   });

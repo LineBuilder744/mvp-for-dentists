@@ -1,6 +1,6 @@
 <div class="drop-zone" data-drop-zone>
-  <p class="drop-prompt">Перетащите STL-файл сюда</p>
+  <p class="drop-prompt">Перетащите {% if widget.attrs.multiple %}файлы{% else %}файл{% endif %} сюда</p>
   {% include "django/forms/widgets/input.html" %}
-  <small>До 200 МБ · один файл</small>
+  <small>{% if widget.attrs.accept == '.stl' %}STL · до 200 МБ{% else %}STL · до 200 МБ, JPG / PNG · до 10 МБ{% endif %}</small>
   <p class="drop-status" role="status" aria-live="polite" hidden></p>
 </div>
