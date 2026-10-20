@@ -13,6 +13,7 @@ from django.urls import reverse
 
 from accounts.models import User
 from .models import Order, OrderFile, Service, private_storage
+from .services import upload_result
 
 
 def binary_stl():
@@ -63,10 +64,12 @@ class STLUploadTests(TestCase):
         order = Order.objects.get(pk=int(response.url.rstrip("/").split("/")[-1]))
         return order.files.get(purpose=OrderFile.Purpose.WORKING)
 
-    def assert_round_trip(self, file, expected):
+    def assert_round_trip(self, file, expected, uploader=None):
         self.assertRegex(file.file.name, rf"^orders/{file.order_id}/[0-9a-f]{{32}}\.stl$")
+        self.assertEqual(file.original_name, Path(file.file.name).name)
+        self.assertRegex(file.original_name, r"^[0-9a-f]{32}\.stl$")
         self.assertEqual(file.size, len(expected))
-        self.assertEqual(file.uploaded_by_id, self.owner.pk)
+        self.assertEqual(file.uploaded_by_id, (uploader or self.owner).pk)
         with file.file.open("rb") as stored:
             self.assertEqual(stored.read(), expected)
         response = self.client.get(reverse("orders:download", args=[file.pk]))
@@ -76,6 +79,7 @@ class STLUploadTests(TestCase):
             self.assertEqual(len(downloaded), len(expected))
             self.assertEqual(hashlib.sha256(downloaded).digest(), hashlib.sha256(expected).digest())
             self.assertEqual(response["Cache-Control"], "private, no-store")
+            self.assertEqual(response["Content-Disposition"], f'attachment; filename="{file.original_name}"')
         finally:
             response.close()
 
@@ -92,6 +96,7 @@ class STLUploadTests(TestCase):
         first = self.submit(first_data, "same_scan.stl")
         second = self.submit(second_data, "same_scan.stl")
         self.assertNotEqual(first.file.name, second.file.name)
+        self.assertNotEqual(first.original_name, second.original_name)
         self.assert_round_trip(first, first_data)
         self.assert_round_trip(second, second_data)
 
@@ -109,6 +114,33 @@ class STLUploadTests(TestCase):
             with self.subTest(purpose=file.purpose):
                 self.assert_round_trip(file, data)
 
+    def test_source_name_is_not_exposed_in_order_card(self):
+        original_name = "исходный_скан_пример.STL"
+        file = self.submit(binary_stl(), original_name)
+        response = self.client.get(reverse("orders:detail", args=[file.order_id]))
+        self.assertContains(response, file.original_name)
+        self.assertNotContains(response, original_name)
+        self.assertNotEqual(file.original_name, original_name)
+
+    def test_additional_stl_is_anonymized(self):
+        data = binary_stl()
+        working = self.submit(data)
+        Order.objects.filter(pk=working.order_id).update(status="needs_data")
+        response = self.client.post(reverse("orders:add_file", args=[working.order_id]), {
+            "purpose": "additional", "file": SimpleUploadedFile("extra_source_scan.stl", data),
+        })
+        self.assertEqual(response.status_code, 302)
+        file = working.order.files.get(purpose="additional")
+        self.assert_round_trip(file, data)
+
+    def test_result_stl_is_anonymized(self):
+        data = binary_stl()
+        working = self.submit(data)
+        admin = User.objects.create_superuser("stl-admin@example.test", "test-password", first_name="Test")
+        result = upload_result(working.order_id, admin, SimpleUploadedFile("result_source_scan.stl", data))
+        self.client.force_login(admin)
+        self.assert_round_trip(result, data, uploader=admin)
+
     def test_invalid_stl_does_not_create_an_order_or_stored_file(self):
         for data, name in [(b"", "empty.stl"), (binary_stl()[:-1], "truncated.stl"),
                            (b"not an STL file", "renamed.stl"), (binary_stl(), "scan.exe")]:
@@ -119,6 +151,15 @@ class STLUploadTests(TestCase):
                 self.assertEqual(Order.objects.count(), 0)
                 self.assertEqual(OrderFile.objects.count(), 0)
                 self.assertFalse(any(path.is_file() for path in self.storage_root.rglob("*")))
+
+    @override_settings(MAX_UPLOAD_BYTES=100)
+    def test_size_limit_is_enforced_before_saving(self):
+        response = self.client.post(reverse("orders:create"), self.payload(binary_stl()))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("working", response.context["form"].errors)
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(OrderFile.objects.count(), 0)
+        self.assertFalse(any(path.is_file() for path in self.storage_root.rglob("*")))
 
     @skipUnless(os.environ.get("CAD_TEST_STL_PATH"), "Set CAD_TEST_STL_PATH to test a private real-world STL")
     @override_settings(FILE_UPLOAD_MAX_MEMORY_SIZE=1)

@@ -36,9 +36,10 @@ def attach_file(order, actor, upload, purpose, version=None):
     check_storage(order.organization_id, upload.size)
     if purpose != OrderFile.Purpose.RESULT and order.files.exclude(purpose="result").count() >= settings.MAX_ATTACHMENTS_PER_ORDER:
         raise ValidationError("Не более 10 исходных файлов на заказ.")
-    obj = OrderFile(order=order, uploaded_by=actor, original_name=Path(upload.name).name[:255],
+    obj = OrderFile(order=order, uploaded_by=actor,
                     size=upload.size, purpose=purpose, version=version)
     obj.file.save(upload.name, upload, save=False)
+    obj.original_name = Path(obj.file.name).name
     try:
         obj.save()
     except Exception:

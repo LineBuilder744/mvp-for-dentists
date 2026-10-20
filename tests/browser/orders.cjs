@@ -156,19 +156,25 @@ print(json.dumps({'designer':d.pk,'company':u.company_id,'png':base64.b64encode(
     await adminPage.locator('#id_result_upload').setInputFiles({name: 'result-v1.stl', mimeType: 'application/octet-stream', buffer: stl});
     await saveAdmin(adminPage);
     const resultId = await adminPage.locator('#id_publish_file option').last().getAttribute('value');
+    const resultName = shell(`from orders.models import OrderFile; print(OrderFile.objects.get(pk=${resultId}).original_name)`);
+    assert.match(resultName, /^[0-9a-f]{32}\.stl$/);
     await adminPage.locator('#id_publish_file').selectOption(resultId);
     await adminPage.locator('#id_quality_confirmed').check();
     await adminPage.locator('#id_next_status').selectOption('ready');
     await saveAdmin(adminPage);
     await page.goto(`${base}/orders/${crown}/`);
-    await page.getByRole('link', {name: 'Скачать result-v1.stl', exact: true}).waitFor();
+    await page.getByRole('link', {name: `Скачать ${resultName}`, exact: true}).waitFor();
     await page.locator('#id_revision_text').fill('Исправить контакт по изображению.');
     await page.locator('#id_file').setInputFiles({name: 'correction.png', mimeType: 'image/png', buffer: Buffer.from(fixture.png, 'base64')});
     await page.getByRole('button', {name: 'Запросить исправление', exact: true}).click();
     await page.getByText('Исправление запрошено.', {exact: true}).waitFor();
     await page.getByText('На доработке', {exact: true}).first().waitFor();
-    assert.ok((await page.locator('[data-files=source]').innerText()).includes('correction.png'));
-    assert.ok((await page.locator('[data-files=result]').innerText()).includes('result-v1.stl'));
+    const correctionName = shell(`from orders.models import OrderFile; print(OrderFile.objects.get(order_id=${crown},purpose='explanation').original_name)`);
+    assert.match(correctionName, /^[0-9a-f]{32}\.png$/);
+    assert.ok((await page.locator('[data-files=source]').innerText()).includes(correctionName));
+    assert.ok((await page.locator('[data-files=result]').innerText()).includes(resultName));
+    assert.equal(await page.getByText('result-v1.stl', {exact:true}).count(), 0);
+    assert.equal(await page.getByText('correction.png', {exact:true}).count(), 0);
 
     await adminPage.goto(`${base}/admin/orders/order/${bridge}/change/`);
     await adminPage.locator('#id_new_price').fill('1500');

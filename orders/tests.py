@@ -260,7 +260,7 @@ class OrderTests(TestCase):
         with self.assertRaises(ValidationError):
             publish_result(result.pk, self.designer)
         self.assertEqual(self.client.get(reverse("orders:download", args=[result.pk])).status_code, 404)
-        self.assertNotContains(self.client.get(reverse("orders:detail", args=[self.order.pk])), "draft.stl")
+        self.assertNotContains(self.client.get(reverse("orders:detail", args=[self.order.pk])), result.original_name)
         review_result(result.pk, self.designer)
         publish_result(result.pk, self.designer)
         transition(self.order.pk, self.designer, "ready")
@@ -451,12 +451,16 @@ class MigrationTests(TransactionTestCase):
             LegacyUser = state.get_model("accounts", "User")
             LegacyService = state.get_model("orders", "Service")
             LegacyOrder = state.get_model("orders", "Order")
+            LegacyFile = state.get_model("orders", "OrderFile")
             a = LegacyUser.objects.create(email="legacy-a@example.com", first_name="A", organization="Same name")
             b = LegacyUser.objects.create(email="legacy-b@example.com", first_name="B", organization="Same name")
             staff = LegacyUser.objects.create(email="legacy-staff@example.com", first_name="Team", is_staff=True)
             service, _ = LegacyService.objects.update_or_create(kind="model", defaults={"name": "Legacy model", "is_active": True})
             LegacyService.objects.update_or_create(kind="crown", defaults={"name": "Полноанатомическая коронка"})
             order = LegacyOrder.objects.create(client=a, service=service, teeth="16")
+            stored_name = f"orders/{order.pk}/{'a' * 32}.stl"
+            legacy_file = LegacyFile.objects.create(order=order, uploaded_by=a, file=stored_name,
+                                                     original_name="legacy_source_name.stl", size=134, purpose="working")
             executor = MigrationExecutor(connection)
             executor.migrate(leaves)
             first, second = User.objects.get(pk=a.pk), User.objects.get(pk=b.pk)
@@ -467,5 +471,8 @@ class MigrationTests(TransactionTestCase):
             self.assertEqual(migrated.organization_id, first.company_id)
             self.assertFalse(Service.objects.get(pk=service.pk).is_active)
             self.assertEqual(Service.objects.get(kind="crown").name, "Коронка")
+            migrated_file = OrderFile.objects.get(pk=legacy_file.pk)
+            self.assertEqual(migrated_file.original_name, "a" * 32 + ".stl")
+            self.assertEqual(migrated_file.file.name, stored_name)
         finally:
             MigrationExecutor(connection).migrate(leaves)
