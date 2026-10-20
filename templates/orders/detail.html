@@ -5,7 +5,7 @@
 <div class="page-heading"><div><p class="eyebrow">{{ order.created_at|date:'d.m.Y H:i' }} · {{ order.organization }}</p><h1>{{ order.case_number }}</h1></div><span class="badge {{ order.status }}">{% if user.is_staff %}{{ order.get_status_display }}{% else %}{{ order.client_status }}{% endif %}</span></div>
 <div class="detail-layout"><div>
   <section><h2>Параметры конструкции</h2><dl>
-    <dt>Конструкция</dt><dd>{{ order.service }}</dd><dt>Зубы</dt><dd>{{ order.teeth }}</dd><dt>Количество</dt><dd>{{ order.units }} ед.</dd><dt>Материал</dt><dd>{{ order.material_label|default:'—' }}</dd>
+    <dt>Конструкция</dt><dd>{{ order.service }}</dd>{% if order.service.kind != 'surgical_guide' %}<dt>Зубы</dt><dd>{{ order.teeth }}</dd>{% endif %}<dt>Количество</dt><dd>{% if order.service.kind == 'surgical_guide' %}1 шаблон{% else %}{{ order.units }} ед.{% endif %}</dd>{% if order.service.kind != 'surgical_guide' %}<dt>Материал</dt><dd>{{ order.material_label|default:'—' }}</dd>{% endif %}
     {% if order.support_teeth %}<dt>Опорные зубы</dt><dd>{{ order.support_teeth|join:', ' }}</dd><dt>Промежуточные зубы</dt><dd>{{ order.pontic_teeth|join:', ' }}</dd>{% endif %}
     {% if order.design %}<dt>Тип дизайна</dt><dd>{{ order.get_design_display }}</dd>{% endif %}
     {% if order.inlay_type %}<dt>Тип вкладки</dt><dd>{{ order.get_inlay_type_display }}</dd>{% endif %}

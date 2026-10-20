@@ -13,7 +13,7 @@ from .access import can_manage, is_customer
 from .forms import SUPPORTED_KINDS
 from .models import Order, OrderEvent, OrderFile, Service
 from .pricing import quote
-from .validators import validate_attachment, validate_stl
+from .validators import validate_attachment, validate_ct_dicom, validate_stl
 
 
 def event(order, actor, description, is_internal=False):
@@ -29,7 +29,11 @@ def check_storage(organization_id, extra_bytes):
 def attach_file(order, actor, upload, purpose, version=None):
     if not (can_manage(actor, order) or is_customer(actor, order)):
         raise ValidationError("Недостаточно прав.")
-    if purpose in (OrderFile.Purpose.ADDITIONAL, OrderFile.Purpose.EXPLANATION):
+    if purpose == OrderFile.Purpose.CT:
+        if order.service.kind != Service.Kind.SURGICAL_GUIDE:
+            raise ValidationError("Снимок КТ предусмотрен для хирургического шаблона.")
+        validate_ct_dicom(upload)
+    elif purpose in (OrderFile.Purpose.ADDITIONAL, OrderFile.Purpose.EXPLANATION):
         validate_attachment(upload)
     else:
         validate_stl(upload)
@@ -77,7 +81,7 @@ def create_order(client, form):
             organization.free_crown_units -= order.free_units
             organization.save(update_fields=["free_crown_units"])
             order.save()
-            for field, purpose in [("working", "working"), ("antagonist", "antagonist"), ("bite", "bite"), ("scanbody_file", "scanbody")]:
+            for field, purpose in [("working", "working"), ("antagonist", "antagonist"), ("bite", "bite"), ("scanbody_file", "scanbody"), ("ct_image", "ct")]:
                 if form.cleaned_data.get(field):
                     saved_files.append(attach_file(order, client, form.cleaned_data[field], purpose))
             for upload in form.cleaned_data.get("additional_files", []):
@@ -122,6 +126,8 @@ def check_transition(order, actor, target, reason=""):
                 raise ValidationError("Нужен скан со scanbody или отметка о его наличии на рабочем скане.")
         if not order.files.filter(purpose="working").exists():
             raise ValidationError("Отсутствует рабочий скан.")
+        if order.service.kind == Service.Kind.SURGICAL_GUIDE and not order.files.filter(purpose="ct").exists():
+            raise ValidationError("Для хирургического шаблона необходим снимок КТ.")
         if order.price_pending or order.effective_price is None:
             raise ValidationError("До начала работы клиент должен согласовать стоимость.")
         if not order.designer_id or not order.designer.is_designer or not order.designer.is_active or not order.designer.email_verified:

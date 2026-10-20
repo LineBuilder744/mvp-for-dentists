@@ -30,7 +30,7 @@
         <div class="teeth-field"><h3>Промежуточные зубы <span class="required">*</span></h3><div class="tooth-picker pontic-picker">{{ form.pontic_teeth }}</div>{{ form.pontic_teeth.errors }}</div>
       </div>
       <div class="form-grid">
-        {% include 'orders/field.html' with field=form.material %}
+        <div data-kinds="crown bridge inlay implant">{% include 'orders/field.html' with field=form.material required=True %}</div>
         <div data-kinds="crown">{% include 'orders/field.html' with field=form.design %}</div>
         <div data-kinds="inlay">{% include 'orders/field.html' with field=form.inlay_type %}</div>
         <div data-kinds="implant">{% include 'orders/field.html' with field=form.implant_type %}</div>
@@ -56,20 +56,21 @@
     <p class="notice">Не включайте ФИО и другие прямые идентификаторы пациента в названия файлов и комментарии. STL могут содержать чувствительные данные.</p>
     <div class="form-grid">
       {% include 'orders/field.html' with field=form.working %}
-      {% include 'orders/field.html' with field=form.antagonist %}
-      {% include 'orders/field.html' with field=form.bite %}
+      <div data-kinds="surgical_guide">{% include 'orders/field.html' with field=form.ct_image required=True %}<p class="muted">Перед загрузкой удалите ФИО и другие идентификаторы из метаданных DICOM.</p></div>
+      <div data-kinds="crown bridge inlay implant">{% include 'orders/field.html' with field=form.antagonist %}</div>
+      <div data-kinds="crown bridge inlay implant">{% include 'orders/field.html' with field=form.bite %}</div>
       <div data-ti-base>
         <label class="checkbox-label">{{ form.scanbody_on_working }} Scanbody присутствует на рабочем скане</label>
         <div data-scanbody-upload>{% include 'orders/field.html' with field=form.scanbody_file %}</div>
       </div>
-      <div class="full">{% include 'orders/field.html' with field=form.additional_files %}</div>
+      <div class="full" data-kinds="crown bridge inlay implant">{% include 'orders/field.html' with field=form.additional_files %}</div>
     </div>
     <p class="notice" data-occlusion-warning>Для точного проектирования окклюзии могут потребоваться дополнительные сканы. После проверки заказа специалист при необходимости запросит их.</p>
     <div class="order-summary" aria-live="polite">
       <h3>Проверка заказа</h3>
-      <dl><dt>Конструкция</dt><dd data-summary="service">—</dd><dt>Зубы</dt><dd data-summary="teeth">—</dd><dt>Количество</dt><dd data-summary="units">0</dd><dt>Материал</dt><dd data-summary="material">—</dd><dt>Предварительная стоимость</dt><dd class="summary-price" data-summary="price">Стоимость уточняется</dd></dl>
+      <dl><dt>Конструкция</dt><dd data-summary="service">—</dd><dt data-kinds="crown bridge inlay implant">Зубы</dt><dd data-kinds="crown bridge inlay implant" data-summary="teeth">—</dd><dt>Количество</dt><dd data-summary="units">0</dd><dt data-kinds="crown bridge inlay implant">Материал</dt><dd data-kinds="crown bridge inlay implant" data-summary="material">—</dd><dt>Предварительная стоимость</dt><dd class="summary-price" data-summary="price">Стоимость уточняется</dd></dl>
       <p class="muted" data-summary="promotion" hidden></p>
-      {% if free_crowns %}<p class="muted">В организации осталось бесплатных коронок: {{ free_crowns }}.</p>{% endif %}
+      {% if free_crowns %}<p class="muted" data-kinds="crown bridge inlay implant">В организации осталось бесплатных коронок: {{ free_crowns }}.</p>{% endif %}
       <label class="checkbox-label">{{ form.review_order }} {{ form.review_order.label }}</label>{{ form.review_order.errors }}
     </div>
     <div class="submit-row"><button class="button" type="submit">Отправить заказ</button><a href="{% url 'orders:list' %}">Отмена</a><div class="upload-status" hidden role="status"><progress value="0" max="100"></progress><span></span></div></div>

@@ -6,6 +6,46 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 
+def validate_ct_dicom(upload):
+    import pydicom
+    from pydicom.encaps import generate_frames
+    from pydicom.errors import BytesLengthException, InvalidDicomError
+
+    if Path(upload.name).suffix.lower() != ".dcm":
+        raise ValidationError("Для снимка КТ загрузите DICOM-файл (.dcm).")
+    if not upload.size or upload.size > settings.MAX_UPLOAD_BYTES:
+        raise ValidationError("DICOM-файл должен быть непустым и не больше 200 МБ.")
+    try:
+        upload.seek(0)
+        dataset = pydicom.dcmread(upload, force=False)
+        syntax = dataset.file_meta.TransferSyntaxUID
+        if dataset.Modality != "CT" or int(getattr(dataset, "NumberOfFrames", 1)) != 1:
+            raise ValueError("A single CT image is required")
+        rows, columns = int(dataset.Rows), int(dataset.Columns)
+        bits = int(dataset.BitsAllocated)
+        if not (0 < rows * columns <= 20_000_000 and rows > 0 and columns > 0):
+            raise ValueError("Invalid image dimensions")
+        if int(dataset.SamplesPerPixel) != 1 or dataset.PhotometricInterpretation not in ("MONOCHROME1", "MONOCHROME2"):
+            raise ValueError("A monochrome CT image is required")
+        if bits not in (8, 16, 32) or not (0 < int(dataset.BitsStored) <= bits):
+            raise ValueError("Invalid bit depth")
+        if int(dataset.HighBit) != int(dataset.BitsStored) - 1 or int(dataset.PixelRepresentation) not in (0, 1):
+            raise ValueError("Invalid pixel encoding")
+        pixels = dataset.PixelData
+        if syntax.is_compressed:
+            frames = iter(generate_frames(pixels, number_of_frames=1))
+            if not next(frames, b"") or next(frames, None) is not None:
+                raise ValueError("Invalid encapsulated image")
+        else:
+            expected = rows * columns * (bits // 8)
+            if len(pixels) != expected + expected % 2:
+                raise ValueError("Truncated pixel data")
+    except (InvalidDicomError, BytesLengthException, AttributeError, KeyError, TypeError, ValueError, EOFError, OSError, struct.error, NotImplementedError):
+        raise ValidationError("Некорректный DICOM: нужен один двумерный снимок КТ с пиксельными данными.")
+    finally:
+        upload.seek(0)
+
+
 def validate_attachment(upload):
     if Path(upload.name).suffix.lower() == ".stl":
         return validate_stl(upload)

@@ -3,7 +3,7 @@
   <li>
     <div>
       <a href="{% url 'orders:download' file.pk %}">{{ file.original_name }}</a>
-      <small>{{ file.get_purpose_display }}{% if file.version %} · версия {{ file.version }}{% if not file.published_at %} · черновик{% endif %}{% endif %} · {{ file.size|filesizeformat }}</small>
+      <small>{% if order.service.kind == 'surgical_guide' and file.purpose == 'working' %}Снимок STL{% else %}{{ file.get_purpose_display }}{% endif %}{% if file.version %} · версия {{ file.version }}{% if not file.published_at %} · черновик{% endif %}{% endif %} · {{ file.size|filesizeformat }}</small>
     </div>
     <a class="download" href="{% url 'orders:download' file.pk %}" aria-label="Скачать {{ file.original_name }}">{% if file.purpose == 'result' %}Скачать STL{% else %}Скачать{% endif %}</a>
   </li>

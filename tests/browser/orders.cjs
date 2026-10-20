@@ -70,13 +70,14 @@ assert settings.DEBUG, 'Browser fixtures are restricted to a development databas
 from accounts.models import User
 from orders.models import Service,Tariff
 from orders.tests import picture
+from orders.test_surgical_guides import dicom_scan
 u=User.objects.create_user('${email}','${password}',first_name='Тестовый врач',email_verified=True)
 u.company.free_crown_units=3; u.company.save()
 a=User.objects.create_superuser('${adminEmail}','${password}',first_name='Тестовый администратор')
 d=User.objects.create_user('${designerEmail}','${password}',first_name='Тестовый дизайнер',role='designer',is_staff=True,email_verified=True)
-for kind,rate in [('crown',500),('bridge',450),('inlay',600),('implant',900)]:
+for kind,rate in [('crown',500),('bridge',450),('inlay',600),('implant',900),('surgical_guide',1800)]:
     Tariff.objects.create(organization=u.company,service=Service.objects.get(kind=kind),unit_price=rate)
-print(json.dumps({'designer':d.pk,'company':u.company_id,'png':base64.b64encode(picture().read()).decode()}))
+print(json.dumps({'designer':d.pk,'company':u.company_id,'png':base64.b64encode(picture().read()).decode(),'dicom':base64.b64encode(dicom_scan().read()).decode()}))
 `));
   const browser = await chromium.launch({headless: true, executablePath: process.env.CAD_BROWSER_BIN || '/usr/bin/chromium', args: ['--no-sandbox']});
   const context = await browser.newContext({viewport: {width: 1440, height: 1000}});
@@ -146,6 +147,36 @@ print(json.dumps({'designer':d.pk,'company':u.company_id,'png':base64.b64encode(
     const implant = await submit(page);
     await page.getByText('Требуется уточнение', {exact: true}).first().waitFor();
 
+    await page.goto(base + '/orders/new/');
+    await page.locator('[name=service][data-kind=surgical_guide]').check();
+    assert.equal(await page.locator('#id_material').isVisible(), false);
+    assert.equal(await page.locator('#id_selected_teeth').isVisible(), false);
+    assert.equal(await page.locator('#id_antagonist').isVisible(), false);
+    assert.equal(await page.locator('#id_additional_files').isVisible(), false);
+    assert.equal(await page.locator('input[type=file]:visible').count(), 2);
+    await page.waitForFunction(() => document.querySelector('[data-summary=price]').textContent.includes('800,00'));
+    await drop(page, 'working');
+    await page.locator('#id_ct_image').setInputFiles({name: 'ct-image.dcm', mimeType: 'application/dicom', buffer: Buffer.from(fixture.dicom, 'base64')});
+    await page.locator('#id_review_order').check();
+    await page.locator('#id_review_order').evaluate(input => { input.checked = false; input.required = false; });
+    await page.getByRole('button', {name: 'Отправить заказ', exact: true}).click();
+    await page.locator('.errorlist').first().waitFor();
+    assert.equal(await page.locator('#id_working').evaluate(input => input.files.length), 1);
+    assert.equal(await page.locator('#id_ct_image').evaluate(input => input.files.length), 1);
+    await page.locator('#id_review_order').check();
+    await page.setViewportSize({width: 390, height: 844});
+    await checkWidth(page);
+    await page.screenshot({path: '/tmp/cad-surgical-guide-mobile.png', fullPage: true});
+    await page.setViewportSize({width: 1440, height: 1000});
+    await page.screenshot({path: '/tmp/cad-surgical-guide-desktop.png', fullPage: true});
+    await page.getByRole('button', {name: 'Отправить заказ', exact: true}).click();
+    await page.waitForURL(/\/orders\/\d+\/$/);
+    const guide = Number(page.url().match(/orders\/(\d+)\//)[1]); orderIds.push(guide);
+    await page.getByText('Снимок КТ (2D)', {exact: false}).first().waitFor();
+    const guideFiles = JSON.parse(shell(`from orders.models import OrderFile; import json; print(json.dumps(list(OrderFile.objects.filter(order_id=${guide}).values('purpose','original_name'))))`));
+    assert.deepEqual(guideFiles.map(file => file.purpose).sort(), ['ct','working']);
+    guideFiles.forEach(file => assert.match(file.original_name, /^[0-9a-f]{32}\.(stl|dcm)$/));
+
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await login(adminPage, adminEmail, '/admin/');
@@ -203,12 +234,12 @@ print(json.dumps({'designer':d.pk,'company':u.company_id,'png':base64.b64encode(
       await page.setViewportSize({width, height: 844});
       await page.goto(base + '/orders/');
       assert.equal(await page.locator('.order-list-desktop').isVisible(), false);
-      assert.equal(await page.locator('.mobile-order').count(), 5);
+      assert.equal(await page.locator('.mobile-order').count(), 6);
       await checkWidth(page);
       await page.screenshot({path: `/tmp/cad-orders-${width}.png`, fullPage: true});
     }
     assert.deepEqual(failures, []);
-    console.log('PASS: four constructions, dynamic fields, tooth roles, server quotes, retained files, five submissions, QA, image correction, price approval, mobile cards at 390/320px.');
+    console.log('PASS: five services, two required surgical-guide files retained on validation error, anonymous names, server quotes, six submissions, QA, price approval and mobile cards.');
   } finally {
     await browser.close();
     shell(`from accounts.models import User,Organization; from orders.models import OrderAccess,private_storage; u=User.objects.get(email='${email}'); [private_storage.delete(f) for f in u.company.orders.values_list('files__file',flat=True) if f]; u.company.orders.all().delete(); people=User.objects.filter(email__in=['${email}','${adminEmail}','${designerEmail}']); OrderAccess.objects.filter(actor__in=people).delete(); people.delete(); Organization.objects.filter(pk=${fixture.company}).delete(); print('cleaned')`);

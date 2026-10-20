@@ -169,6 +169,8 @@ class OrderAdmin(admin.ModelAdmin):
             fields = list(config["fields"])
             if title == "Имплант" and obj and obj.service.kind != "implant":
                 continue
+            if title == "Заказ" and obj and obj.service.kind == "surgical_guide":
+                fields = [name for name in fields if name not in ("teeth", "support_teeth", "pontic_teeth", "material", "design", "inlay_type", "implant_type")]
             if not request.user.is_order_admin and "new_price" in fields:
                 fields.remove("new_price")
             sections.append((title, {"fields": tuple(fields)}))

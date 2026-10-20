@@ -1,3 +1,4 @@
 Django>=5.2.13,<5.3
 psycopg[binary]>=3.2,<4
 Pillow>=11.3,<13
+pydicom>=3.0.1,<4

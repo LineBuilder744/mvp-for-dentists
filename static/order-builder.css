@@ -1,6 +1,6 @@
 .order-builder { max-width: 960px; }
 .step-number { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; border: 1px solid #becdcd; border-radius: 50%; font-size: 14px; }
-.service-options { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
+.service-options { display: grid; grid-template-columns: repeat(auto-fit,minmax(175px,1fr)); gap: 12px; }
 .service-option { display: flex; align-items: flex-start; gap: 10px; padding: 18px 14px; margin: 0; background: #fff; border: 1px solid #becdcd; border-radius: 6px; min-height: 112px; cursor: pointer; }
 .service-option:has(:checked) { border: 2px solid #116b5f; padding: 17px 13px; background: #edf7f2; }
 .service-option input[type=radio] { width: 16px; min-height: 16px; height: 16px; margin: 4px 0 0; padding: 0; flex-shrink: 0; accent-color: #116b5f; }

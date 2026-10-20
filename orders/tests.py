@@ -80,9 +80,9 @@ class OrderTests(TestCase):
         transition(self.order.pk, self.designer, "ready")
         return result
 
-    def test_four_services_and_no_manual_quantity(self):
+    def test_supported_services_and_no_manual_quantity(self):
         response = self.client.get(reverse("orders:create"))
-        self.assertEqual(len(response.context["services"]), 4)
+        self.assertEqual(len(response.context["services"]), 5)
         self.assertNotContains(response, 'name="units"')
         self.assertNotContains(response, 'name="jaw"')
         self.assertContains(response, "data-order-builder")

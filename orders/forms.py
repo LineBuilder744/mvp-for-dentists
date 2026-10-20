@@ -1,10 +1,10 @@
 from django import forms
 
 from .models import Order, OrderFile, Service
-from .validators import validate_attachment, validate_stl
+from .validators import validate_attachment, validate_ct_dicom, validate_stl
 from .widgets import DropFileInput, MultipleDropFileInput
 
-SUPPORTED_KINDS = (Service.Kind.CROWN, Service.Kind.BRIDGE, Service.Kind.INLAY, Service.Kind.IMPLANT)
+SUPPORTED_KINDS = (Service.Kind.CROWN, Service.Kind.BRIDGE, Service.Kind.INLAY, Service.Kind.IMPLANT, Service.Kind.SURGICAL_GUIDE)
 TEETH = [(str(q * 10 + t), str(q * 10 + t)) for q in range(1, 5) for t in range(1, 9)]
 IMPLANT_FIELDS = ("implant_system", "implant_platform", "scanbody", "abutment")
 
@@ -21,6 +21,8 @@ class TeethField(forms.MultipleChoiceField):
 
 
 def selected_positions(data, service, add_error):
+    if service.kind == Service.Kind.SURGICAL_GUIDE:
+        return []
     if service.kind == Service.Kind.BRIDGE:
         if "support_teeth" not in data or "pontic_teeth" not in data:
             return []
@@ -74,7 +76,7 @@ class OrderForm(forms.ModelForm):
     selected_teeth = TeethField(label="Номера зубов")
     support_teeth = TeethField(label="Опорные зубы")
     pontic_teeth = TeethField(label="Промежуточные зубы")
-    material = forms.ChoiceField(label="Материал", choices=[("", "Выберите материал"), *Order.Material.choices])
+    material = forms.ChoiceField(label="Материал", choices=[("", "Выберите материал"), *Order.Material.choices], required=False)
     design = forms.ChoiceField(label="Тип дизайна", choices=Order.Design.choices, required=False, initial=Order.Design.ANATOMY)
     inlay_type = forms.ChoiceField(label="Тип вкладки / накладки", choices=[("", "Выберите тип"), *Order.InlayType.choices], required=False)
     implant_type = forms.ChoiceField(label="Тип конструкции", choices=[("", "Выберите тип"), *Order.ImplantType.choices], required=False)
@@ -86,6 +88,8 @@ class OrderForm(forms.ModelForm):
     antagonist = forms.FileField(label="Антагонист", required=False, validators=[validate_stl], widget=DropFileInput)
     bite = forms.FileField(label="Прикус / регистрация", required=False, validators=[validate_stl], widget=DropFileInput)
     scanbody_file = forms.FileField(label="Скан со scanbody", required=False, validators=[validate_stl], widget=DropFileInput)
+    ct_image = forms.FileField(label="КТ — DICOM (.dcm)", required=False, validators=[validate_ct_dicom],
+                               widget=DropFileInput(attrs={"accept": ".dcm"}))
 
     class Meta:
         model = Order
@@ -108,6 +112,17 @@ class OrderForm(forms.ModelForm):
         positions = selected_positions(data, service, self.add_error)
         self.instance.teeth = ", ".join(positions)
         self.instance.units = max(1, len(positions))
+        if service.kind == Service.Kind.SURGICAL_GUIDE:
+            data["material"] = ""
+            for name in ("antagonist", "bite"):
+                data[name] = None
+            data["additional_files"] = []
+            if not data.get("ct_image") and "ct_image" not in self.errors:
+                self.add_error("ct_image", "Загрузите 2D-снимок КТ в формате DICOM (.dcm).")
+        else:
+            data["ct_image"] = None
+            if not data.get("material") and "material" not in self.errors:
+                self.add_error("material", "Выберите материал.")
         if service.kind != Service.Kind.BRIDGE:
             data["support_teeth"] = data["pontic_teeth"] = []
         if service.kind == Service.Kind.INLAY and not data.get("inlay_type"):
@@ -140,7 +155,7 @@ class OrderForm(forms.ModelForm):
             data["scanbody_file"] = None
             data["scanbody_on_working"] = False
         self.instance.unknown_implant_fields = unknown
-        files_count = sum(bool(data.get(name)) for name in ("working", "antagonist", "bite", "scanbody_file")) + len(data.get("additional_files", []))
+        files_count = sum(bool(data.get(name)) for name in ("working", "antagonist", "bite", "scanbody_file", "ct_image")) + len(data.get("additional_files", []))
         if files_count > 10:
             self.add_error("additional_files", "Всего можно добавить не более 10 исходных файлов.")
         return data
@@ -174,6 +189,24 @@ class AdditionalFileForm(forms.Form):
     purpose = forms.ChoiceField(label="Назначение", choices=[(p.value, p.label) for p in (
         OrderFile.Purpose.WORKING, OrderFile.Purpose.ANTAGONIST, OrderFile.Purpose.BITE,
         OrderFile.Purpose.SCANBODY, OrderFile.Purpose.ADDITIONAL,
+        OrderFile.Purpose.CT,
     )])
-    file = forms.FileField(label="Файл", validators=[validate_attachment],
+    file = forms.FileField(label="Файл",
                            widget=DropFileInput(attrs={"accept": ".stl,.jpg,.jpeg,.png"}))
+
+    def __init__(self, *args, order=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if order is None or order.service.kind != Service.Kind.SURGICAL_GUIDE:
+            self.fields["purpose"].choices = [(value, label) for value, label in self.fields["purpose"].choices if value != OrderFile.Purpose.CT]
+        else:
+            self.fields["file"].widget.attrs["accept"] = ".stl,.jpg,.jpeg,.png,.dcm"
+
+    def clean(self):
+        data = super().clean()
+        if data.get("file"):
+            validator = validate_ct_dicom if data.get("purpose") == OrderFile.Purpose.CT else validate_attachment
+            try:
+                validator(data["file"])
+            except forms.ValidationError as exc:
+                self.add_error("file", exc)
+        return data

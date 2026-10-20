@@ -19,6 +19,7 @@ class Service(models.Model):
         IMPLANT = "implant", "Коронка на импланте"
         INLAY = "inlay", "Вкладка / накладка"
         BRIDGE = "bridge", "Мост"
+        SURGICAL_GUIDE = "surgical_guide", "Хирургический шаблон"
         MODEL = "model", "Модель челюсти для печати"
 
     name = models.CharField("Название", max_length=150)
@@ -184,6 +185,7 @@ class OrderFile(models.Model):
         ANTAGONIST = "antagonist", "Антагонист"
         BITE = "bite", "Прикус"
         SCANBODY = "scanbody", "Scanbody"
+        CT = "ct", "Снимок КТ (2D)"
         EXPLANATION = "explanation", "Пояснение"
         ADDITIONAL = "additional", "Дополнительный файл"
         RESULT = "result", "Готовый STL"

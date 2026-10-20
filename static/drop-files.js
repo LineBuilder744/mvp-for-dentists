@@ -17,7 +17,7 @@ function initializeDropFiles(root = document) {
       for (const file of files) {
         const extension = '.' + file.name.split('.').pop().toLowerCase();
         if (!formats.includes(extension)) return `Допустимые форматы: ${input.accept}.`;
-        const limit = extension === '.stl' ? 200 : 10;
+        const limit = ['.stl', '.dcm'].includes(extension) ? 200 : 10;
         if (!file.size || file.size > limit * 1024 * 1024) return `Файл должен быть непустым и не больше ${limit} МБ.`;
       }
       return '';

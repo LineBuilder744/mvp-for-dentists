@@ -16,11 +16,15 @@ function initializeOrderBuilder(root = document) {
       if (pending) pending.abort();
       const selected = form.querySelector('[name=service]:checked');
       const kind = selected?.dataset.kind;
+      const surgicalGuide = kind === 'surgical_guide';
       const tiBase = kind === 'implant' && control('implant_type').value === 'ti_base';
       form.querySelector('[data-no-service]').hidden = Boolean(kind);
       toggle(form.querySelector('[data-service-fields]'), Boolean(kind));
       toggle(form.querySelector('[data-service-files]'), Boolean(kind));
       form.querySelectorAll('[data-kinds]').forEach(group => toggle(group, Boolean(kind && group.dataset.kinds.split(' ').includes(kind))));
+      control('material').required = Boolean(kind && !surgicalGuide);
+      control('ct_image').required = surgicalGuide;
+      form.querySelector('label[for=id_working]').firstChild.textContent = surgicalGuide ? 'Снимок STL ' : 'Рабочая челюсть ';
       form.querySelectorAll('[data-ti-base]').forEach(group => toggle(group, tiBase));
       form.querySelectorAll('[data-implant-parameter]').forEach(group => {
         const unknown = group.querySelector('input[type=checkbox]');
@@ -39,15 +43,15 @@ function initializeOrderBuilder(root = document) {
       teeth.sort((a,b) => Number(a)-Number(b));
       summary('service').textContent = selected?.dataset.title || '—';
       summary('teeth').textContent = teeth.join(', ') || '—';
-      summary('units').textContent = `${teeth.length} ед.`;
+      summary('units').textContent = surgicalGuide ? '1 шаблон' : `${teeth.length} ед.`;
       summary('material').textContent = control('material').selectedOptions[0]?.textContent || '—';
-      summary('price').textContent = teeth.length ? 'Рассчитываем…' : 'Стоимость уточняется';
+      summary('price').textContent = surgicalGuide || teeth.length ? 'Рассчитываем…' : 'Стоимость уточняется';
       summary('promotion').hidden = true;
-      form.querySelector('[data-occlusion-warning]').hidden = Boolean(control('antagonist').files.length && control('bite').files.length);
-      if (!kind || !teeth.length) return;
+      form.querySelector('[data-occlusion-warning]').hidden = surgicalGuide || Boolean(control('antagonist').files.length && control('bite').files.length);
+      if (!kind || (!surgicalGuide && !teeth.length)) return;
       // Quote requests carry only service and positions, never the scan files.
       const payload = new URLSearchParams({service:selected.value});
-      const fields = kind === 'bridge' ? ['support_teeth','pontic_teeth'] : ['selected_teeth'];
+      const fields = surgicalGuide ? [] : (kind === 'bridge' ? ['support_teeth','pontic_teeth'] : ['selected_teeth']);
       fields.forEach(name => checked(name).forEach(value => payload.append(name,value)));
       timer = setTimeout(async () => {
         pending = new AbortController();

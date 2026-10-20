@@ -47,7 +47,9 @@ def order_quote(request):
     if not form.is_valid():
         return JsonResponse({"errors": form.errors}, status=400)
     organization = Organization.objects.get(pk=request.user.company_id)
-    result = quote(organization, form.cleaned_data["service"], len(form.cleaned_data["positions"]))
+    service = form.cleaned_data["service"]
+    units = 1 if service.kind == "surgical_guide" else len(form.cleaned_data["positions"])
+    result = quote(organization, service, units)
     return JsonResponse({key: str(value) if isinstance(value, Decimal) else value for key, value in result.items()})
 
 
@@ -74,10 +76,11 @@ def order_create(request):
             else:
                 messages.success(request, f"Заказ {order.case_number} отправлен.")
                 return redirect("orders:detail", pk=order.pk)
-    order_of_kinds = ["crown", "bridge", "inlay", "implant"]
+    order_of_kinds = ["crown", "bridge", "inlay", "implant", "surgical_guide"]
     services = sorted(form.fields["service"].queryset, key=lambda service: order_of_kinds.index(service.kind))
     labels = {"crown": ("Коронка", "На собственном зубе"), "bridge": ("Мост", "Мостовидный протез"),
-              "inlay": ("Вкладка / накладка", "Inlay, Onlay, Overlay"), "implant": ("Коронка на импланте", "На Ti-base или готовом абатменте")}
+              "inlay": ("Вкладка / накладка", "Inlay, Onlay, Overlay"), "implant": ("Коронка на импланте", "На Ti-base или готовом абатменте"),
+              "surgical_guide": ("Хирургический шаблон", "STL и 2D-снимок КТ")}
     for service in services:
         service.title, service.subtitle = labels[service.kind]
     return render(request, "orders/create.html", {"form": form, "services": services,
@@ -96,7 +99,7 @@ def render_detail(request, order, file_form=None, revision_form=None):
         "source_files": files.exclude(purpose="result").order_by("created_at"),
         "result_files": files.filter(purpose="result").order_by("-version"), "events": events,
         "customer": is_customer(request.user, order), "comments": order.comments.select_related("author"),
-        "comment_form": CommentForm(), "file_form": file_form or AdditionalFileForm(),
+        "comment_form": CommentForm(), "file_form": file_form or AdditionalFileForm(order=order),
         "revision_form": revision_form or RevisionForm()})
     if file_form is not None or revision_form is not None:
         response["X-Form-Errors"] = "1"
@@ -127,8 +130,8 @@ def add_comment(request, pk):
 @login_required
 @require_POST
 def add_file(request, pk):
-    form = AdditionalFileForm(request.POST, request.FILES)
-    get_order(request.user, pk, "upload")
+    order = get_order(request.user, pk, "upload")
+    form = AdditionalFileForm(request.POST, request.FILES, order=order)
     saved = None
     try:
         with transaction.atomic():
