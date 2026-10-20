@@ -168,6 +168,20 @@ python manage.py makemigrations --check --dry-run
 python manage.py test
 ```
 
+STL-загрузки отдельно: `python manage.py test orders.test_stl_uploads`.
+Тесты проверяют бинарный и ASCII STL, все назначения сканов, запись на диск,
+уникальные обезличенные пути, совпадение содержимого при скачивании и отказ
+для пустых / повреждённых файлов. Реальную частную модель можно проверить
+без её добавления в Git:
+
+```bash
+CAD_TEST_STL_PATH=/private/path/sample.stl python manage.py test orders.test_stl_uploads
+```
+
+Без этой переменной пропускается только проверка внешней модели; синтетические
+STL тестируются всегда. Исходные модели и имена с персональными данными в
+тестовые фикстуры репозитория не включать.
+
 Дополнительный Playwright-прогон: установить Node.js и `playwright`, запустить
 dev-сервер, затем `node tests/browser/orders.cjs`. Нужен Chromium; путь задаётся
 `CAD_BROWSER_BIN` (по умолчанию `/usr/bin/chromium`). Прогон разрешён только на
