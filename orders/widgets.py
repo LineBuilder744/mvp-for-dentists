@@ -6,3 +6,7 @@ class DropFileInput(forms.FileInput):
 
     def __init__(self, attrs=None):
         super().__init__({"accept": ".stl", **(attrs or {})})
+
+
+class MultipleDropFileInput(DropFileInput):
+    allow_multiple_selected = True

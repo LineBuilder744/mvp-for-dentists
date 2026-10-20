@@ -1,0 +1,36 @@
+.order-builder { max-width: 960px; }
+.step-number { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; border: 1px solid #becdcd; border-radius: 50%; font-size: 14px; }
+.service-options { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
+.service-option { display: flex; align-items: flex-start; gap: 10px; padding: 18px 14px; margin: 0; background: #fff; border: 1px solid #becdcd; border-radius: 6px; min-height: 112px; cursor: pointer; }
+.service-option:has(:checked) { border: 2px solid #116b5f; padding: 17px 13px; background: #edf7f2; }
+.service-option input[type=radio] { width: 16px; min-height: 16px; height: 16px; margin: 4px 0 0; padding: 0; flex-shrink: 0; accent-color: #116b5f; }
+.service-option strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.service-option small { font-weight: 400; }
+.teeth-field { margin-bottom: 26px; }
+.teeth-field h3 { margin: 0 0 12px; font-size: 14px; }
+.tooth-picker { max-width: 540px; }
+.tooth-picker > div { display: grid; grid-template-columns: repeat(8,minmax(0,1fr)); gap: 6px; }
+.tooth-picker label { position: relative; display: grid; place-items: center; height: 42px; margin: 0; border: 1px solid #becdcd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+.tooth-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.tooth-picker label:has(:checked) { color: #fff; background: #116b5f; border-color: #116b5f; }
+.pontic-picker label:has(:checked) { background: #355f92; border-color: #355f92; }
+.tooth-picker label:has(:disabled) { opacity: .3; cursor: not-allowed; }
+.tooth-picker label:has(:focus-visible) { outline: 2px solid #116b5f; outline-offset: 2px; }
+.checkbox-label { display: flex; align-items: flex-start; gap: 9px; margin: 12px 0; font-size: 13px; font-weight: 400; }
+.checkbox-label input { accent-color: #116b5f; flex-shrink: 0; margin-top: 4px; }
+.implant-parameters { border-top: 1px solid #d9e2e2; margin-top: 24px; padding-top: 12px; }
+.comment-field { margin-top: 24px; }
+.order-summary { padding: 20px 0; margin-top: 24px; border-top: 1px solid #d9e2e2; border-bottom: 1px solid #d9e2e2; }
+.order-summary dl { grid-template-columns: 210px minmax(0,1fr); max-width: 640px; }
+.summary-price { font-weight: 650; color: #116b5f; }
+[hidden] { display: none !important; }
+.order-list-mobile { display: none; }
+.mobile-order { padding: 18px; border: 1px solid #d9e2e2; border-radius: 6px; margin-bottom: 12px; background: #fff; min-width: 0; }
+.mobile-order-heading { display: flex; gap: 16px; justify-content: space-between; align-items: center; }
+.mobile-order h2 { font-size: 16px; margin: 14px 0 6px; overflow-wrap: anywhere; }
+.mobile-order p { overflow-wrap: anywhere; }
+.price-proposal { border-top: 1px solid #d9e2e2; padding: 12px 0 24px; }
+.detail-layout form .field { margin-bottom: 16px; }
+@media(max-width:760px) { .order-list-desktop { display: none; } .order-list-mobile { display: block; } .mobile-order-heading { flex-wrap: wrap; } .detail-layout .drop-zone { padding: 12px; } }
+@media(max-width:760px) { .service-options { grid-template-columns: 1fr 1fr; } .service-option { min-height: 118px; padding: 14px 10px; } .service-option:has(:checked) { padding: 13px 9px; } .order-summary dl { grid-template-columns: 130px minmax(0,1fr); } .order-builder .form-grid { grid-template-columns: 1fr; } }
+@media(max-width:380px) { .service-options { grid-template-columns: 1fr; } .service-option { min-height: 84px; } }

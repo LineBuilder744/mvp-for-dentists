@@ -1,7 +1,7 @@
 {% load static %}
 <!doctype html>
 <html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}CAD · Кабинет{% endblock %}</title><link rel="stylesheet" href="{% static 'app.css' %}"><link rel="stylesheet" href="{% static 'uploads.css' %}"><script defer src="{% static 'drop-files.js' %}"></script><script defer src="{% static 'app.js' %}"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}CAD · Кабинет{% endblock %}</title><link rel="stylesheet" href="{% static 'app.css' %}"><link rel="stylesheet" href="{% static 'uploads.css' %}"><link rel="stylesheet" href="{% static 'order-builder.css' %}"><script defer src="{% static 'drop-files.js' %}"></script><script defer src="{% static 'order-builder.js' %}"></script><script defer src="{% static 'app.js' %}"></script></head>
 <body>
 <header class="header"><a class="brand" href="{% url 'orders:list' %}"><span class="brand-mark">C</span> CAD<span class="brand-caption">Стоматологический дизайн</span></a>
 <nav>{% if user.is_authenticated %}<a href="{% url 'orders:list' %}">Заказы</a>{% if user.is_staff %}<a href="{% url 'admin:index' %}">Команда</a>{% endif %}<span class="user-name">{{ user.first_name }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-button" type="submit">Выйти</button></form>{% else %}<a href="{% url 'login' %}">Войти</a><a href="{% url 'register' %}">Регистрация</a>{% endif %}</nav></header>

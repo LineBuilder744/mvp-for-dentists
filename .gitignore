@@ -223,3 +223,6 @@ __marimo__/
 private_uploads/
 staticfiles/
 artifacts/
+backups/
+restored/
+node_modules/

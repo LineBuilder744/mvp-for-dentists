@@ -1,7 +1,78 @@
 {% extends 'base.html' %}
-{% block title %}Новый заказ · CAD{% endblock %}
-{% block content %}<a class="back" href="{% url 'orders:list' %}">← Мои заказы</a><div class="page-heading"><div><p class="eyebrow">CAD-проектирование</p><h1>Новый заказ</h1></div></div>
-<form method="post" enctype="multipart/form-data" class="order-form" data-upload-form>{% csrf_token %}{{ form.submission_key }}{{ form.non_field_errors }}{{ form.submission_key.errors }}
-<section><h2>Задание</h2><div class="form-grid">{% for field in form.visible_fields %}{% if field.name != 'working' and field.name != 'antagonist' and field.name != 'bite' and field.name != 'scanbody_file' %}<div class="field {% if field.name == 'requirements' %}full{% endif %}" data-field="{{ field.name }}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required">*</span>{% endif %}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div></section>
-<section><h2>Исходные сканы</h2><p class="notice">STL, до 200 МБ на файл. Не загружайте ФИО и другие прямые идентификаторы пациента.</p><div class="form-grid">{% for field in form.visible_fields %}{% if field.name == 'working' or field.name == 'antagonist' or field.name == 'bite' or field.name == 'scanbody_file' %}<div class="field" data-field="{{ field.name }}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required">*</span>{% endif %}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div></section>
-<div class="submit-row"><button class="button" type="submit">Отправить заказ</button><a href="{% url 'orders:list' %}">Отмена</a><div class="upload-status" hidden role="status"><progress value="0" max="100"></progress><span></span></div></div></form>{% endblock %}
+{% block title %}Создать заказ · CAD{% endblock %}
+{% block content %}
+<a class="back" href="{% url 'orders:list' %}">← Мои заказы</a>
+<div class="page-heading"><div><p class="eyebrow">CAD-проектирование</p><h1>Создать заказ</h1></div></div>
+<form method="post" enctype="multipart/form-data" class="order-form order-builder" data-upload-form data-order-builder data-quote-url="{% url 'orders:quote' %}">
+  {% csrf_token %}{{ form.submission_key }}{{ form.submission_key.errors }}{{ form.non_field_errors }}
+  <section>
+    <h2><span class="step-number">1</span> Выбор конструкции</h2>
+    {{ form.service.errors }}
+    <div class="service-options">
+      {% for service in services %}
+      <label class="service-option">
+        <input type="radio" name="service" value="{{ service.pk }}" data-kind="{{ service.kind }}" data-title="{{ service.title }}" {% if selected_service == service.pk|stringformat:'s' %}checked{% endif %} required>
+        <span><strong>{{ service.title }}</strong><small>{{ service.subtitle }}</small></span>
+      </label>
+      {% empty %}<p class="muted">Услуги временно недоступны.</p>{% endfor %}
+    </div>
+  </section>
+  <section>
+    <h2><span class="step-number">2</span> Параметры конструкции</h2>
+    <p class="muted" data-no-service>Конструкция не выбрана.</p>
+    <div data-service-fields hidden>
+      <div data-kinds="crown inlay implant" class="teeth-field">
+        <h3>{{ form.selected_teeth.label }} <span class="required">*</span></h3>
+        <div class="tooth-picker">{{ form.selected_teeth }}</div>{{ form.selected_teeth.errors }}
+      </div>
+      <div data-kinds="bridge">
+        <div class="teeth-field"><h3>Опорные зубы <span class="required">*</span></h3><div class="tooth-picker">{{ form.support_teeth }}</div>{{ form.support_teeth.errors }}</div>
+        <div class="teeth-field"><h3>Промежуточные зубы <span class="required">*</span></h3><div class="tooth-picker pontic-picker">{{ form.pontic_teeth }}</div>{{ form.pontic_teeth.errors }}</div>
+      </div>
+      <div class="form-grid">
+        {% include 'orders/field.html' with field=form.material %}
+        <div data-kinds="crown">{% include 'orders/field.html' with field=form.design %}</div>
+        <div data-kinds="inlay">{% include 'orders/field.html' with field=form.inlay_type %}</div>
+        <div data-kinds="implant">{% include 'orders/field.html' with field=form.implant_type %}</div>
+      </div>
+      <div data-ti-base class="implant-parameters">
+        <h3>Параметры Ti-base</h3>
+        <div class="form-grid">
+          {% for parameter in implant_parameters %}
+          <div class="field" data-implant-parameter>
+            <label for="{{ parameter.field.id_for_label }}">{{ parameter.field.label }}</label>
+            {{ parameter.field }}{{ parameter.field.errors }}
+            <label class="checkbox-label">{{ parameter.unknown }} {{ parameter.unknown.label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="notice" data-clarification-warning hidden>Имплантные параметры требуют уточнения. Команда согласует их до начала CAD-проектирования.</p>
+      </div>
+      <div class="comment-field">{% include 'orders/field.html' with field=form.requirements %}</div>
+    </div>
+  </section>
+  <section data-service-files hidden>
+    <h2><span class="step-number">3</span> Загрузите сканы и проверьте заказ</h2>
+    <p class="notice">Не включайте ФИО и другие прямые идентификаторы пациента в названия файлов и комментарии. STL могут содержать чувствительные данные.</p>
+    <div class="form-grid">
+      {% include 'orders/field.html' with field=form.working %}
+      {% include 'orders/field.html' with field=form.antagonist %}
+      {% include 'orders/field.html' with field=form.bite %}
+      <div data-ti-base>
+        <label class="checkbox-label">{{ form.scanbody_on_working }} Scanbody присутствует на рабочем скане</label>
+        <div data-scanbody-upload>{% include 'orders/field.html' with field=form.scanbody_file %}</div>
+      </div>
+      <div class="full">{% include 'orders/field.html' with field=form.additional_files %}</div>
+    </div>
+    <p class="notice" data-occlusion-warning>Для точного проектирования окклюзии могут потребоваться дополнительные сканы. После проверки заказа специалист при необходимости запросит их.</p>
+    <div class="order-summary" aria-live="polite">
+      <h3>Проверка заказа</h3>
+      <dl><dt>Конструкция</dt><dd data-summary="service">—</dd><dt>Зубы</dt><dd data-summary="teeth">—</dd><dt>Количество</dt><dd data-summary="units">0</dd><dt>Материал</dt><dd data-summary="material">—</dd><dt>Предварительная стоимость</dt><dd class="summary-price" data-summary="price">Стоимость уточняется</dd></dl>
+      <p class="muted" data-summary="promotion" hidden></p>
+      {% if free_crowns %}<p class="muted">В организации осталось бесплатных коронок: {{ free_crowns }}.</p>{% endif %}
+      <label class="checkbox-label">{{ form.review_order }} {{ form.review_order.label }}</label>{{ form.review_order.errors }}
+    </div>
+    <div class="submit-row"><button class="button" type="submit">Отправить заказ</button><a href="{% url 'orders:list' %}">Отмена</a><div class="upload-status" hidden role="status"><progress value="0" max="100"></progress><span></span></div></div>
+  </section>
+</form>
+{% endblock %}

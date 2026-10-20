@@ -12,10 +12,12 @@ root.querySelectorAll('[data-upload-form]').forEach(form => {
     const label = status.querySelector('span');
     const xhr = new XMLHttpRequest();
     const payload = new FormData(form);
-    const inputs = Array.from(form.querySelectorAll('input[type=file]')).filter(input => !input.disabled);
+    const allInputs = Array.from(form.querySelectorAll('input[type=file]'));
+    const inputs = allInputs.filter(input => !input.disabled);
     inputs.forEach(input => { input.disabled = true; });
     button.disabled = true;
     status.hidden = false;
+    progress.value = 0;
     label.textContent = 'Загрузка файлов…';
     xhr.open('POST', form.action || window.location.href);
     xhr.upload.onprogress = e => {
@@ -27,12 +29,12 @@ root.querySelectorAll('[data-upload-form]').forEach(form => {
     const failed = () => {
       button.disabled = false;
       inputs.forEach(input => { input.disabled = false; });
-      label.textContent = 'Не удалось отправить заказ. Проверьте соединение и повторите отправку.';
+      label.textContent = xhr.status === 429 ? 'Лимит запросов исчерпан. Повторите отправку позже.' : 'Не удалось отправить заказ. Проверьте соединение и повторите отправку.';
     };
     xhr.onerror = failed;
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        if (new URL(xhr.responseURL).pathname !== window.location.pathname) {
+        if (!xhr.getResponseHeader('X-Form-Errors') && new URL(xhr.responseURL).pathname !== window.location.pathname) {
           window.location.assign(xhr.responseURL);
         } else {
           const doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
@@ -40,7 +42,7 @@ root.querySelectorAll('[data-upload-form]').forEach(form => {
           if (!main) { failed(); return; }
           // Move the original file controls: replacing them clears the browser's selection.
           const replacements = Array.from(main.querySelectorAll('input[type=file]'));
-          inputs.forEach(input => {
+          allInputs.forEach(input => {
             input.disabled = false;
             if (!input.files.length) return;
             const replacement = replacements.find(field => field.name === input.name);
@@ -54,6 +56,7 @@ root.querySelectorAll('[data-upload-form]').forEach(form => {
           });
           document.querySelector('main').replaceWith(main);
           initializeDropFiles(main);
+          initializeOrderBuilder(main);
           initializeOrderForms(main);
         }
       } else failed();
